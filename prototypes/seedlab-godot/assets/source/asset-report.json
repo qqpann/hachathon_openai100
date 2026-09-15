@@ -1,0 +1,27 @@
+{
+  "blender": "5.2.1 LTS",
+  "assets": [
+    {
+      "name": "workbench",
+      "meshes": 72,
+      "bytes": 668880
+    },
+    {
+      "name": "robot_base",
+      "meshes": 13,
+      "bytes": 148432
+    },
+    {
+      "name": "arm_link",
+      "meshes": 15,
+      "bytes": 167668
+    },
+    {
+      "name": "gripper",
+      "meshes": 10,
+      "bytes": 110476
+    }
+  ],
+  "scene": "SEEDLAB | Button garden.002",
+  "source": "Original procedural models; no external assets"
+}

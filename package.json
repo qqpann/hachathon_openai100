@@ -1,0 +1,11 @@
+{
+  "name": "seedlab-button-garden",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test prototypes/seedlab-godot/bridge/server.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

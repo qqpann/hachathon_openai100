@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.godot/
+.local/
+node_modules/
+build/
+*.log
+.DS_Store
+__pycache__/
