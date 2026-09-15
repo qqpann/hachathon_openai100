@@ -4,7 +4,15 @@
 
 手書き数字MNISTを実際のカメラ画像から学習する小さなニューラルネットと、ロボットアームの3D育成ゲーム。Godot 4.5.1製。強化の選択をOpenAIコーチに任せると、同じアームが左の強化盤を押します。
 
-## 起動
+## 配布版で遊ぶ
+
+[GitHub Releases](https://github.com/qqpann/hachathon_openai100/releases) から、Mac（Apple Silicon / Intel共通）、Windows x64、Linux x64向けのファイルを展開して起動します。Godot・Node.js・日本語フォントを同梱しています。Windows / Linuxでは実行ファイルと `seedlab` フォルダを同じ場所に置いてください。
+
+右側の「APIキーを設定・解除」で、自分のOpenAI APIキーを入力できます。キーはこの起動中だけローカル接続サービスのメモリに保持し、ゲームの保存データや設定ファイルには書きません。「キーを破棄」または終了時に破棄します。API料金は入力したキーのアカウントにかかります。NNの育成と試験はキーなしでも遊べます。
+
+Mac版はアドホック署名のみで、Developer ID署名・公証はしていません。Windows版も未署名です。配布ZIP内の `README.txt` に起動方法を記載しています。
+
+## ソースから起動
 
 ```sh
 ./prototypes/seedlab-godot/run.command
@@ -80,8 +88,10 @@ GodotエディターのF5からも接続を自動準備します。接続が切�
 - 共通の `server/usage-policy.js` を使用。重複リクエストの合流・5分キャッシュ・同時2件を維持し、この試作は最大4回/分、20回/サーバー起動に抑えます。環境にそれより小さい上限があれば従います。失敗も回数に含まれます。アカウント全体の金額上限ではありません。
 - 30Gを残して買える強化だけを候補にします。回答待ちに手動購入した場合は、古い段階の購入を取り消します。
 - 停止後の遅れた回答は購入に使いません。通信・回答のエラーは明示し、委任を停止します。
-- サーバーは `127.0.0.1:4873` のみで待受。ブラウザのOrigin付きリクエストを拒否します。キーは表示・保存・Godotへの転送をしません。
+- 開発版サーバーは `127.0.0.1:4873`、配布版は起動ごとに選ぶループバックのポートで待受。配布版はゲーム固有の認証トークンで接続し、`.env.local` や継承したAPIキーは読みません。ブラウザのOrigin付きリクエストを拒否します。キー入力はマスクし、サーバーからキーを返すことはありません。
 - ランチャーまたはゲームが起動したサーバーは、そのゲーム終了時に止まります。すでに動いていたサーバーは停止しません。
+
+配布版のキー変更でもキャッシュと呼び出し上限はリセットしません。異なるキーのキャッシュは分離します。ゲームが異常終了した場合も、同梱サーバーが親プロセスの終了を検出して止まります。
 
 参照：[Responsesの画像入力](https://developers.openai.com/api/docs/guides/images-vision)、[構造化出力](https://developers.openai.com/api/docs/guides/structured-outputs)、[モデル仕様](https://developers.openai.com/api/docs/models/gpt-5.4-nano)。
 
@@ -119,3 +129,17 @@ pnpm run check
 Blenderで制作した作業台・アーム・手先のGLBと、編集用の `assets/source/seedlab-workshop.blend` を同梱。別のBlenderシーンは保護しています。ボタン・照明・エフェクト・効果音はGodot内で生成します。
 
 ユーザー指定のGodot試作のため、Vite / Three.js作品のHTML入口や作品カタログへの登録はありません。
+
+配布版は Noto Sans CJK JP Regular（SIL OFL 1.1、未改変）を使用します。ライセンスは `assets/fonts/OFL.txt`。エディター実行では従来のシステムフォントを使用します。
+
+## デスクトップ版の作成
+
+macOS上でGodot 4.5.1と同バージョンのエクスポートテンプレート、Python 3を用意し、リポジトリ直下から実行します。
+
+```sh
+python3 prototypes/seedlab-godot/tools/package_desktop.py
+```
+
+`build/desktop/releases/` に3 OSのアーカイブとSHA-256チェックサムを生成します。Node.js 22.23.2の公式配布物を固定チェックサムで検証し、必要な実行ファイルとライセンスだけを同梱します。Macは同梱後にアドホック署名します。キーやセーブファイルはコピーしません。
+
+2026年9月15日の提出時点は `submission-2026-09-15` タグに保持しています。ネイティブ配布・BYOT設定・同梱フォントは締切後の追加です。

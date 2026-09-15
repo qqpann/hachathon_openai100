@@ -6,6 +6,20 @@ Teach a robot to read handwritten MNIST digits, earn G, and press physical upgra
 
 ## Play
 
+Download a native build from **[GitHub Releases](https://github.com/qqpann/hachathon_openai100/releases)**:
+
+- **macOS:** one Universal app for Apple Silicon and Intel.
+- **Windows:** x64 ZIP; keep the `seedlab` folder beside the executable.
+- **Linux:** x64 tar.gz; keep the `seedlab` folder beside the executable.
+
+Extract the entire archive. Godot, Node.js and Japanese fonts are bundled. The game interface is Japanese. The local neural learner, upgrades and certification exams work offline.
+
+For optional OpenAI coaching, use the bottom-right **APIキーを設定・解除** button to enter your own OpenAI API key. The masked input passes the key to a private, authenticated loopback server. It is kept in memory for this launch only, never saved with the game. Clear it in the same dialog or quit the game to discard it. Usage is billed to your OpenAI API account. Unlock Learning level 3 and complete 24 practice trials before pressing R to delegate.
+
+macOS builds are ad-hoc signed, without Developer ID signing or notarization. Windows builds are unsigned. See the included README for OS launch instructions.
+
+### Run from source
+
 Requires Godot 4.5+ and Node.js 22.12+.
 
 ```sh
@@ -33,6 +47,16 @@ npm test
 
 Godot: MIT and bundled notices, https://godotengine.org/license/ . Node.js: MIT and bundled notices. Blender (GPL-2.0-or-later) and Blender MCP (MIT) were authoring tools for the original models. OpenAI API and Codex are services under their applicable terms. The API usage-policy helper was reused from our hackathon workspace.
 
-MNIST by Yann LeCun, Corinna Cortes and Christopher J. C. Burges: an 800-image subset obtained through https://github.com/cvdfoundation/mnist . The CVDF mirror does not state a separate license; https://huggingface.co/datasets/ylecun/mnist lists MIT. The original split, source indices and checksums are recorded in `prototypes/seedlab-godot/data/mnist/manifest.json`. System fonts are used from the operating system and are not bundled.
+MNIST by Yann LeCun, Corinna Cortes and Christopher J. C. Burges: an 800-image subset obtained through https://github.com/cvdfoundation/mnist . The CVDF mirror does not state a separate license; https://huggingface.co/datasets/ylecun/mnist lists MIT. The original split, source indices and checksums are recorded in `prototypes/seedlab-godot/data/mnist/manifest.json`. Packaged builds include unmodified Noto Sans CJK JP Regular under SIL OFL 1.1; its license is in `prototypes/seedlab-godot/assets/fonts/OFL.txt`. Editor builds use installed system fonts.
 
-This repository contains the latest MNIST game and its required server helper, prepared for submission on September 15, 2026.
+## Build and submission history
+
+On macOS, install Godot 4.5.1 with matching export templates and run:
+
+```sh
+python3 prototypes/seedlab-godot/tools/package_desktop.py
+```
+
+This creates three archives and SHA-256 checksums in `prototypes/seedlab-godot/build/desktop/releases/`. The bundled Node.js 22.23.2 executables come from official downloads and are verified against pinned checksums.
+
+The original September 15, 2026 submission is preserved at **[submission-2026-09-15](https://github.com/qqpann/hachathon_openai100/tree/submission-2026-09-15)** (`833e4dd`). Native packaging, the BYOT settings dialog and bundled fonts were added after the submission deadline.

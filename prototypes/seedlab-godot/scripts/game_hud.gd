@@ -1,4 +1,5 @@
 extends Node2D
+const Fonts = preload("res://scripts/ui_fonts.gd")
 ## Native Godot instrument panel; matrices remain physical clickable objects.
 const DARK = Color("142832")
 const PAPER = Color("e6ecd7")
@@ -7,17 +8,13 @@ const MINT = Color("77edbd")
 const GOLD = Color("ffbf61")
 const ORANGE = Color("ed8544")
 var game
-var font: SystemFont
-var latin: SystemFont
+var font: Font
+var latin: Font
 var hitboxes: Array = []
 
 func _ready() -> void:
-	font = SystemFont.new()
-	font.font_names = PackedStringArray(["Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", "sans-serif"])
-	font.font_weight = 600
-	latin = SystemFont.new()
-	latin.font_names = PackedStringArray(["Avenir Next", "sans-serif"])
-	latin.font_weight = 700
+	font = Fonts.make(PackedStringArray(["Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", "sans-serif"]))
+	latin = Fonts.make(PackedStringArray(["Avenir Next", "sans-serif"]), 700)
 
 func hit_at(point: Vector2) -> String:
 	for item in hitboxes:
@@ -102,8 +99,10 @@ func _coach() -> void:
 		wrapped(Vector2(1130, 606), game.coach_goal, 257, 12, MUTED, 21)
 	elif not game.lab.auto_research:
 		wrapped(Vector2(1130, 586), game.coach.health_note, 257, 12, MINT if game.coach.available else MUTED, 21)
-		if not game.coach.available:
+		if not game.coach.available and not game.coach.byot:
 			button(Rect2(1130, 630, 255, 32), "connect", "接続準備中…" if game.coach.connecting else "コーチに再接続", false, 13)
+	if game.coach.byot:
+		button(Rect2(1130, 695, 255, 32), "api_settings", "APIキーを設定・解除", false, 13)
 
 func _growth_hint() -> void:
 	var row = -1

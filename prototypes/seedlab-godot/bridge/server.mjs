@@ -88,7 +88,12 @@ export function createCoach({ env = {}, fetchImpl = fetch, now = Date.now } = {}
 }
 
 export function createBridge(options = {}) {
-  const coach = createCoach(options);
+
+  // A packaged game owns one authenticated loopback bridge. BYOT keys live only
+  // in this private environment object, never in a file or a returned response.
+  const runtimeEnv = { ...options.env };
+  const coach = createCoach({ ...options, env: runtimeEnv });
+  let inFlight = 0;
   return http.createServer(async (req, res) => {
     const send = result => {
       res.writeHead(result.status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -96,31 +101,56 @@ export function createBridge(options = {}) {
     };
     // Native Godot only. Reject cross-site browser requests and DNS rebinding.
     if (req.headers.origin || !/^(127\.0\.0\.1|localhost):\d+$/.test(req.headers.host ?? '')) return send(failure(403, 'ローカルのゲームから接続してください。'));
-    if (req.method === 'GET' && req.url === '/health') return send({ status: 200, body: { service: SERVICE, configured: Boolean(options.env?.OPENAI_API_KEY), model: DEFAULT_MODEL } });
-    if (req.method !== 'POST' || req.url !== '/coach') return send(failure(404, '見つかりません。'));
+    if (options.sessionToken && req.headers.authorization !== `Bearer ${options.sessionToken}`) return send(failure(403, 'このゲームからの接続を確認できませんでした。'));
+    if (req.method === 'GET' && req.url === '/health') return send({ status: 200, body: { service: SERVICE, configured: Boolean(runtimeEnv.OPENAI_API_KEY), model: DEFAULT_MODEL } });
+    if (req.method !== 'POST' || !['/coach', '/configure'].includes(req.url)) return send(failure(404, '見つかりません。'));
+    if (req.url === '/configure' && !options.sessionToken) return send(failure(403, '配布版のゲームから設定してください。'));
     if (!req.headers['content-type']?.startsWith('application/json')) return send(failure(415, 'JSONが必要です。'));
     try {
       let size = 0; const chunks = [];
       for await (const chunk of req) {
         size += chunk.length;
-        if (size > 250000) { send(failure(413, '画像が大きすぎます。')); req.resume(); return; }
+        if (size > (req.url === '/configure' ? 2048 : 250000)) { send(failure(413, '送信内容が大きすぎます。')); req.resume(); return; }
         chunks.push(chunk);
       }
       let payload;
       try { payload = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return send(failure(400, 'JSONを確認できませんでした。')); }
-      send(await coach(payload));
+      if (req.url === '/configure') {
+        if (!payload || Object.keys(payload).join(',') !== 'api_key' || typeof payload.api_key !== 'string'
+            || (payload.api_key !== '' && !/^sk-[A-Za-z0-9_-]{16,509}$/.test(payload.api_key))) return send(failure(400, 'OpenAI APIキーの形式を確認してください。'));
+        if (inFlight) return send(failure(409, 'コーチの通信が終わってから設定してください。'));
+        runtimeEnv.OPENAI_API_KEY = payload.api_key;
+        return send({ status: 200, body: { configured: Boolean(runtimeEnv.OPENAI_API_KEY) } });
+      }
+      inFlight++;
+      try { send(await coach(payload)); } finally { inFlight--; }
     } catch { if (!res.headersSent) send(failure(400, 'リクエストを読み込めませんでした。')); }
   });
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { process.loadEnvFile(fileURLToPath(new URL('../../../.env.local', import.meta.url))); } catch (error) {
-    if (error.code !== 'ENOENT') console.error('SEEDLAB: local environment could not be loaded.');
+  const arg = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
+  const isolated = process.argv.includes('--isolated');
+  const sessionToken = arg('session');
+  const port = Number(arg('port') ?? 4873);
+  const parent = Number(arg('parent'));
+  if (!Number.isInteger(port) || port < 1024 || port > 65535 || (isolated && !/^[a-f0-9]{64}$/.test(sessionToken ?? ''))) {
+    console.error('SEEDLAB: invalid local bridge configuration.');
+    process.exit(1);
   }
-  const server = createBridge({ env: process.env });
+  if (!isolated) {
+    try { process.loadEnvFile(fileURLToPath(new URL('../../../.env.local', import.meta.url))); } catch (error) {
+      if (error.code !== 'ENOENT') console.error('SEEDLAB: local environment could not be loaded.');
+    }
+  }
+  const server = createBridge({ env: isolated ? {} : process.env, sessionToken });
   server.requestTimeout = 25000;
   server.headersTimeout = 10000;
-  server.listen(4873, '127.0.0.1', () => console.log('SEEDLAB coach ready on 127.0.0.1:4873; model=' + DEFAULT_MODEL));
+  server.listen(port, '127.0.0.1', () => console.log('SEEDLAB local coach ready; model=' + DEFAULT_MODEL));
   server.on('error', error => { console.error('SEEDLAB bridge could not start: ' + error.code); process.exitCode = 1; });
   for (const signal of ['SIGINT','SIGTERM']) process.on(signal, () => server.close(() => process.exit(0)));
+  // If the game crashes, discard the in-memory key with its helper process.
+  if (isolated && Number.isInteger(parent) && parent > 0) setInterval(() => {
+    try { process.kill(parent, 0); } catch (error) { if (error.code === 'ESRCH') process.exit(0); }
+  }, 2000).unref();
 }

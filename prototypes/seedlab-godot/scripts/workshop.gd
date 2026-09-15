@@ -1,4 +1,5 @@
 extends Node3D
+const Fonts = preload("res://scripts/ui_fonts.gd")
 const Monitor = preload("res://scripts/brain_monitor.gd")
 const Arm = preload("res://scripts/robot_arm.gd")
 const WORKBENCH = preload("res://assets/workbench.glb")
@@ -40,14 +41,12 @@ var time = 0.0
 var hover_kind = ""
 var hover_index = -1
 var shake = 0.0
-var font: SystemFont
+var font: Font
 var lab
 
 func setup(state) -> void:
 	lab = state
-	font = SystemFont.new()
-	font.font_names = PackedStringArray(["Avenir Next", "Hiragino Sans", "sans-serif"])
-	font.font_weight = 700
+	font = Fonts.make(PackedStringArray(["Avenir Next", "Hiragino Sans", "sans-serif"]), 700)
 	_environment()
 	var bench = WORKBENCH.instantiate()
 	add_child(bench)

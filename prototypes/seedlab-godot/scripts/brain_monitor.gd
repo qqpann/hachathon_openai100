@@ -1,4 +1,5 @@
 extends Node2D
+const Fonts = preload("res://scripts/ui_fonts.gd")
 ## The always-on screen rendered onto the physical workbench monitor.
 const INK = Color("091c23")
 const MINT = Color("82f2c2")
@@ -12,12 +13,10 @@ var outputs: Array = []
 var activities: Array = []
 var coach_active = false
 var phase = "READY"
-var font: SystemFont
+var font: Font
 
 func _ready() -> void:
-	font = SystemFont.new()
-	font.font_names = PackedStringArray(["Hiragino Sans", "Noto Sans CJK JP", "sans-serif"])
-	font.font_weight = 600
+	font = Fonts.make(PackedStringArray(["Hiragino Sans", "Noto Sans CJK JP", "sans-serif"]))
 
 func clear_signal() -> void:
 	pixels.clear()

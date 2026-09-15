@@ -3,6 +3,8 @@ const Lab = preload("res://scripts/button_lab.gd")
 const World = preload("res://scripts/workshop.gd")
 const Hud = preload("res://scripts/game_hud.gd")
 const Coach = preload("res://scripts/openai_coach.gd")
+const ApiSettings = preload("res://scripts/api_settings.gd")
+var api_settings
 var coach
 var coach_reason = "学び方Lv.3「育成委任」を購入すると、強化の選択を任せられます。"
 var coach_goal = ""
@@ -76,14 +78,14 @@ func _process(delta: float) -> void:
 	result_time = maxf(0, result_time - delta)
 	reveal_time = maxf(0, reveal_time - delta)
 	if world != null:
-		if not show_help and not show_reset and hud.hit_at(pointer) == "":
+		if not show_help and not show_reset and api_settings == null and hud.hit_at(pointer) == "":
 			hover = world.pick(pointer)
 		else:
 			hover = {}
 		world.hover_kind = hover.get("kind", "")
 		world.hover_index = hover.get("index", -1)
 	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if not hover.is_empty() or hud.hit_at(pointer) != "" else Input.CURSOR_ARROW)
-	if ((auto_trials and lab.unlocked("auto_practice")) or lab.exam_active) and not busy and not show_help and not show_reset and vision_check_path == "":
+	if ((auto_trials and lab.unlocked("auto_practice")) or lab.exam_active) and not busy and not show_help and not show_reset and api_settings == null and vision_check_path == "":
 		_run_trial()
 	monitor_elapsed += delta
 	if monitor_elapsed >= .20:
@@ -94,6 +96,7 @@ func _process(delta: float) -> void:
 		_capture.call_deferred()
 
 func _input(event: InputEvent) -> void:
+	if api_settings != null: return
 	if event is InputEventMouse:
 		# Event coordinates stay correct under Retina scaling and window resize.
 		pointer = event.position
@@ -192,6 +195,7 @@ func activate(action: String) -> void:
 		"exam": _start_exam()
 		"page": world.set_growth_page(1 - world.growth_page)
 		"research": _toggle_research()
+		"api_settings": _open_api_settings()
 		"connect":
 			if not coach.connecting:
 				await coach.ensure_connection()
@@ -220,6 +224,19 @@ func activate(action: String) -> void:
 			show_help = false
 			status = "新しい小さなNN。まずは押してみよう。"
 			_save_game()
+
+func _open_api_settings() -> void:
+	if not coach.byot or api_settings != null: return
+	if busy or coach.waiting:
+		status = "アームとコーチの動作が終わってから設定できます。"
+		return
+	lab.auto_research = false
+	coach.cancel()
+	world.restore_camera()
+	api_settings = ApiSettings.new()
+	api_settings.game = self
+	api_settings.closed.connect(func(): api_settings = null)
+	hud.get_parent().add_child(api_settings)
 
 func _start_exam() -> void:
 	if not lab.unlocked("self_press"):
@@ -336,6 +353,9 @@ func _toggle_research() -> void:
 		status = "コーチの接続準備中です。"
 		return
 	if not coach.available:
+		if coach.byot:
+			_open_api_settings()
+			return
 		status = "コーチに接続しています…"
 		if not await coach.ensure_connection():
 			coach_reason = coach.health_note

@@ -121,3 +121,78 @@ test('locked delegation is rejected before contacting OpenAI', async () => {
   p.state.levels[2] = 3;
   assert.deepEqual(prepare(p).state.unlocked, ['self_press', 'auto_practice', 'coach']);
 });
+
+const byotKey = 'sk-' + 'test_only_never_real_'.repeat(3);
+async function privateBridge(t, options = {}) {
+  const server = createBridge({ sessionToken: 'private-test-session', ...options });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const headers = { Authorization: 'Bearer private-test-session', 'Content-Type': 'application/json' };
+  const post = (route, body) => fetch(url + route, { method: 'POST', headers, body: JSON.stringify(body) });
+  return { url, headers, post };
+}
+
+test('BYOT configuration requires its private session and rejects browser origins', async t => {
+  const { url, headers, post } = await privateBridge(t);
+  assert.equal((await fetch(url + '/health')).status, 403);
+  assert.equal((await fetch(url + '/configure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: byotKey }) })).status, 403);
+  assert.equal((await fetch(url + '/configure', { method: 'POST', headers: { ...headers, Origin: 'https://example.com' }, body: JSON.stringify({ api_key: byotKey }) })).status, 403);
+  assert.equal((await post('/configure', { api_key: byotKey })).status, 200);
+  const health = await (await fetch(url + '/health', { headers })).json();
+  assert.deepEqual(health, { service: SERVICE, configured: true, model: 'gpt-5.4-nano' });
+});
+
+test('BYOT key is used only upstream, clearing removes access, caller environment stays untouched', async t => {
+  const sourceEnv = {}; let calls = 0;
+  const { url, headers, post } = await privateBridge(t, { env: sourceEnv, fetchImpl: async (_url, init) => {
+    calls++; assert.equal(init.headers.Authorization, `Bearer ${byotKey}`);
+    assert.ok(!init.body.includes(byotKey));
+    return { ok: true, json: async () => completed() };
+  } });
+  const configured = await (await post('/configure', { api_key: byotKey })).json();
+  assert.deepEqual(configured, { configured: true }); assert.deepEqual(sourceEnv, {});
+  const result = await (await post('/coach', payload())).json();
+  assert.equal(result.source, 'live'); assert.ok(!JSON.stringify(result).includes(byotKey));
+  assert.deepEqual(await (await post('/configure', { api_key: '' })).json(), { configured: false });
+  assert.equal((await post('/coach', payload())).status, 503);
+  assert.equal((await (await fetch(url + '/health', { headers })).json()).configured, false);
+  assert.equal(calls, 1);
+});
+
+test('BYOT rejects malformed and oversized credentials without echoing input', async t => {
+  const { post } = await privateBridge(t);
+  for (const value of [null, [], { api_key: 123 }, { api_key: 'not-a-key' }, { api_key: byotKey, save: true }, { api_key: 'sk-' + 'x'.repeat(510) }]) {
+    const response = await post('/configure', value);
+    assert.equal(response.status, 400); assert.ok(!(await response.text()).includes(byotKey));
+  }
+  assert.equal((await post('/configure', { api_key: 'sk-' + 'x'.repeat(3000) })).status, 413);
+});
+
+test('changing BYOT keys isolates cached answers and preserves request caps', async t => {
+  let calls = 0;
+  const { post } = await privateBridge(t, { fetchImpl: async () => { calls++; return { ok: true, json: async () => completed() }; } });
+  await post('/configure', { api_key: byotKey });
+  assert.equal((await (await post('/coach', payload())).json()).source, 'live');
+  await post('/configure', { api_key: byotKey + 'second' });
+  assert.equal((await (await post('/coach', payload())).json()).cacheHit, false);
+  for (let i = 1; i <= 2; i++) { const p = payload(); p.state.trials += i; assert.equal((await post('/coach', p)).status, 200); }
+  await post('/configure', { api_key: byotKey + 'third' });
+  const p = payload(); p.state.trials += 9;
+  assert.equal((await post('/coach', p)).status, 429); assert.equal(calls, 4);
+});
+
+test('key changes wait for the current consultation and the legacy bridge cannot configure', async t => {
+  let release, began;
+  const started = new Promise(resolve => { began = resolve; });
+  const pending = new Promise(resolve => { release = resolve; });
+  const { post } = await privateBridge(t, { fetchImpl: async () => { began(); await pending; return { ok: true, json: async () => completed() }; } });
+  await post('/configure', { api_key: byotKey });
+  const consultation = post('/coach', payload());
+  await started;
+  try { assert.equal((await post('/configure', { api_key: '' })).status, 409); }
+  finally { release(); }
+  assert.equal((await consultation).status, 200);
+  const legacy = await privateBridge(t, { sessionToken: undefined });
+  assert.equal((await legacy.post('/configure', { api_key: byotKey })).status, 403);
+});
