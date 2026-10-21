@@ -128,7 +128,19 @@ export function createBridge(options = {}) {
   });
 }
 
+export function isPatchedNode(version) {
+  const match = /^(22|24|26)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) return false;
+  const [, major, minor, patch] = match.map(Number);
+  const [minMinor, minPatch] = { 22: [23, 4], 24: [22, 1], 26: [12, 1] }[major];
+  return minor > minMinor || (minor === minMinor && patch >= minPatch);
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (!isPatchedNode(process.versions.node)) {
+    console.error('SEEDLAB: use patched Node.js 22.23.4+, 24.22.1+, or 26.12.1+ within those majors.');
+    process.exit(1);
+  }
   const arg = name => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3);
   const isolated = process.argv.includes('--isolated');
   const sessionToken = arg('session');

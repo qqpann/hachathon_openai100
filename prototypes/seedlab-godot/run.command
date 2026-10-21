@@ -28,6 +28,6 @@ if [[ -n "$SEEDLAB_NODE" ]]; then
     done
   fi
 else
-  print 'Node.js 22.12以降が見つかりません。手動育成で起動します。'
+  print 'Node.js 22.23.4以上の22系、24.22.1以上の24系、または26.12.1以上の26系が見つかりません。手動育成で起動します。'
 fi
 env -u OPENAI_API_KEY "$SEEDLAB_GODOT" --path "$SEEDLAB_DIR" "$@"
