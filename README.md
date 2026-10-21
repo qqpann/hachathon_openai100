@@ -20,7 +20,7 @@ macOS builds are ad-hoc signed, without Developer ID signing or notarization. Wi
 
 ### Run from source
 
-Requires Godot 4.5+ and Node.js 22.12+.
+Requires Godot 4.5+ and Node.js 22.23.4+ (22.x), 24.22.1+ (24.x), or 26.12.1+ (26.x).
 
 ```sh
 ./prototypes/seedlab-godot/run.command
@@ -57,6 +57,6 @@ On macOS, install Godot 4.5.1 with matching export templates and run:
 python3 prototypes/seedlab-godot/tools/package_desktop.py
 ```
 
-This creates three archives and SHA-256 checksums in `prototypes/seedlab-godot/build/desktop/releases/`. The bundled Node.js 22.23.2 executables come from official downloads and are verified against pinned checksums.
+This creates three archives and SHA-256 checksums in `prototypes/seedlab-godot/build/desktop/releases/`. The bundled Node.js 22.23.4 executables come from official downloads and are verified against pinned checksums.
 
 The original September 15, 2026 submission is preserved at **[submission-2026-09-15](https://github.com/qqpann/hachathon_openai100/tree/submission-2026-09-15)** (`833e4dd`). Native packaging, the BYOT settings dialog and bundled fonts were added after the submission deadline.

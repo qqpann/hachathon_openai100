@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { createCoach, createBridge, prepare, SERVICE } from './server.mjs';
+import { createCoach, createBridge, prepare, SERVICE, isPatchedNode } from './server.mjs';
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
 const payload = () => ({ image, state: { task: 'mnist', trials: 24, credits: 400, levels: [0,0,3,0], camera: 0, recent: [1,0,0,1], position_tries: Array(10).fill(2), position_wins: Array(10).fill(1), exam_best: [-1,-1], demonstrations: 4, learning_steps: 600, streak: 1, hidden: 8 } });
 const completed = (data = { decision: '1:0', reason: '以前の経験を復習できるよう、記憶を増やそう。', next_goal: '認定試験で3点を目指そう。' }) => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(data) }] }], usage: { input_tokens: 200, output_tokens: 60 } });
@@ -195,4 +195,14 @@ test('key changes wait for the current consultation and the legacy bridge cannot
   assert.equal((await consultation).status, 200);
   const legacy = await privateBridge(t, { sessionToken: undefined });
   assert.equal((await legacy.post('/configure', { api_key: byotKey })).status, 403);
+});
+
+
+test('bridge runtime requires a patched supported Node release', () => {
+  for (const version of ['22.23.4', '22.24.0', '24.22.1', '24.23.0', '26.12.1', '26.13.0']) {
+    assert.equal(isPatchedNode(version), true, version);
+  }
+  for (const version of ['18.20.8', '20.20.0', '22.23.3', '24.22.0', '24.15.0', '25.9.0', '26.12.0', '27.0.0', '24.22.1-rc.1']) {
+    assert.equal(isPatchedNode(version), false, version);
+  }
 });
